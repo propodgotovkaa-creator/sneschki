@@ -39,3 +39,7 @@ h1{margin-bottom:clamp(14px,3.5vmin,32px)}
 
 @media(max-width:460px){.stat,#prompt{padding:7px 8px;font-size:14px}.heart{width:16px}.stat#lives{gap:1px}}
 #field[data-screen=play] .front-wall{pointer-events:auto}
+
+#rules{width:min(390px,calc(100% - 32px));max-height:90svh;overflow:auto;color:inherit;border:1px solid #cbb994;border-radius:12px;background:#fff8e9;padding:clamp(18px,4vmin,32px);box-shadow:0 12px 40px #29413f44}
+#rules h2{font-size:clamp(32px,6vmin,48px)}
+#rules::backdrop{background:#233d4280}

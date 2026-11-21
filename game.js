@@ -208,6 +208,7 @@ function finish(won){
   el("again").textContent=won?"Играть ещё":"Попробовать снова";el("again").focus();
   if(won){burst(point(el("field"),.64,.53),true);}
 }
+el("rulesButton").onclick=()=>el("rules").showModal();
 el("play").onclick=start;el("again").onclick=start;
 el("back").onclick=()=>{setScreen("menu");el("boy").src="assets/boy.png";el("play").focus();};
 for(let i=0;i<40;i++){

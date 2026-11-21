@@ -16,6 +16,14 @@
 <fieldset><legend>Выбери звук</legend><div class="choices" id="sounds"><button data-value="s" aria-pressed="true">Звук С</button><button data-value="sh" aria-pressed="false">Звук Ш</button></div></fieldset>
 <fieldset><legend>Жизни</legend><div class="choices" id="counts"><button aria-label="3 жизни" data-value="3" aria-pressed="false">3</button><button aria-label="4 жизни" data-value="4" aria-pressed="false">4</button><button aria-label="5 жизней" data-value="5" aria-pressed="true">5</button></div></fieldset>
 <button class="primary" id="play">Играть</button>
+<button class="secondary" id="rulesButton" aria-haspopup="dialog">Правила</button>
+<dialog id="rules" aria-labelledby="rulesTitle">
+<h2 id="rulesTitle">Правила</h2>
+<p>Назови картинку на табличке. Слышишь выбранный звук? Нажми на картинку, чтобы бросить снежок.</p>
+<p>Картинки можно пропускать. За ошибку теряется одно сердечко.</p>
+<p>Попади в 15 нужных картинок, чтобы победить!</p>
+<form method="dialog"><button class="primary" autofocus>Понятно</button></form>
+</dialog>
 </section>
 <div id="hud" hidden><div class="stat">Попадания <strong id="score">0/15</strong></div><div id="prompt" hidden></div><div class="stat" id="lives"></div></div>
 <div id="boards" hidden></div>
