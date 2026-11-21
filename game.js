@@ -46,15 +46,53 @@ function start(){
   el("lives").innerHTML=heart().repeat(state.count);
   setScreen("play");updateHud();round();
 }
+// Each trio returns until its target is hit. Waiting costs no lives.
+let sequence = [];
+let nextCard = 0;
+let lastSpot = -1;
+let activeBoard = null;
+let cycleTimer = 0;
+const readingTime = 3000;
+
 function round(){
-  const distractors=shuffled(pictures[state.group==="s"?"sh":"s"]).slice(0,2);
-  const choices=shuffled([state.deck[state.score],...distractors]);
-  el("boards").replaceChildren(...choices.map((card,i)=>{
-    const slot=document.createElement("div"),button=document.createElement("button"),img=new Image();
-    slot.className="slot";slot.style.setProperty("--lift",(i===1?random(-19,-7):random(-3,14))+"%");
-    button.className="board";button.setAttribute("aria-label",card.name);img.src=card.src;img.alt="";button.append(img);
-    button.onclick=()=>shoot(card,button);slot.append(button);return slot;
-  }));
+  const other = state.group === "s" ? "sh" : "s";
+  sequence = shuffled([state.deck[state.score], ...shuffled(pictures[other]).slice(0,2)]);
+  nextCard = 0;
+  showNext();
+}
+
+function showNext(){
+  clearTimeout(cycleTimer);
+  if(el("field").dataset.screen !== "play")return;
+  const card = sequence[nextCard];
+  nextCard = (nextCard + 1) % sequence.length;
+  const spots = [0,1,2].filter(spot => spot !== lastSpot);
+  lastSpot = shuffled(spots)[0];
+  const button = document.createElement("button");
+  const picture = new Image();
+  picture.src = card.src;
+  picture.alt = "";
+  picture.draggable = false;
+  button.className = "board rising";
+  button.setAttribute("aria-label",card.name);
+  button.style.left = ([23,50,77][lastSpot] + random(-3,3)) + "%";
+  button.style.setProperty("--lean",random(-4,4)+"deg");
+  button.append(picture);
+  button.onclick = () => shoot(card,button);
+  activeBoard = button;
+  el("boards").replaceChildren(button);
+  cycleTimer = setTimeout(() => lowerBoard(button,showNext), readingTime + 460);
+}
+
+async function lowerBoard(button,after){
+  if(button !== activeBoard)return;
+  clearTimeout(cycleTimer);
+  activeBoard = null;
+  button.disabled = true;
+  button.classList.add("lowering");
+  await button.getAnimations().find(a => a.animationName === "lower")?.finished.catch(()=>{});
+  button.remove();
+  cycleTimer = setTimeout(after,240);
 }
 const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
 async function motion(node,frames,duration,easing="ease-out"){
@@ -87,26 +125,28 @@ function burst(p,flags=false){
   }
 }
 async function shoot(card,button){
-  if(state.locked || el("field").dataset.screen!=="play")return;
+  if(state.locked || button !== activeBoard || el("field").dataset.screen!=="play")return;
+  clearTimeout(cycleTimer);
   state.locked=true;
-  const boy=el("boy"),hand=point(boy,.90,.04),target=point(button);
+  const boy=el("boy"),hand=point(boy,.90,.04),target=point(button.querySelector("img"));
   await motion(boy,[{transform:"rotate(0)"},{transform:"rotate(-7deg)",offset:.55},{transform:"rotate(4deg)"}],180);
   boy.src="assets/throw.png";await flight(hand,target);burst(target);
   const correct=card.group===state.group;
   if(correct){
     state.score++;updateHud();el("announce").textContent=card.name+". Верно! "+state.score+" из 15.";
-    await motion(button,[{transform:"rotate(0)"},{transform:"rotate(-8deg)",offset:.25},{transform:"rotate(5deg)",offset:.48},{transform:"translateY(115%)"}],400);
-    if(state.score===15)finish(true);else round();
+    await motion(button.querySelector("img"),[{rotate:"0deg"},{rotate:"-7deg"},{rotate:"4deg"},{rotate:"0deg"}],210);
+    await lowerBoard(button, () => state.score===15 ? finish(true) : round());
   }else{
     await flight(target,point(boy,.5,.18));burst(point(boy,.5,.18));
     state.lives--;updateHud();el("announce").textContent=card.name+". Попробуй другую картинку. Жизней — "+state.lives;
     await motion(boy,[{transform:"rotate(0)"},{transform:"rotate(-5deg)"},{transform:"rotate(3deg)"},{transform:"rotate(0)"}],270);
-    if(state.lives===0)finish(false);
+    if(state.lives===0)finish(false);else await lowerBoard(button,showNext);
   }
   if(el("field").dataset.screen==="play")boy.src="assets/boy.png";
   state.locked=false;
 }
 function finish(won){
+  clearTimeout(cycleTimer);activeBoard=null;el("boards").replaceChildren();
   setScreen("end");el("boy").src="assets/"+(won?"win":"lose")+".png";
   el("ending").textContent=won?"Ура! Крепость покорена!":"Снежки закончились!";
   el("summary").textContent=won?"15 точных попаданий!":"Попробуем ещё раз?";

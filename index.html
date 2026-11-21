@@ -9,7 +9,7 @@
 </head>
 <body>
 <main id="field" data-screen="menu">
-<div class="landscape"></div><div class="veil"></div>
+<div class="landscape"></div><div class="veil"></div><div class="front-wall" aria-hidden="true"></div>
 <div id="snow" aria-hidden="true"></div>
 <section id="menu" class="paper">
 <h1>Снежная <br>крепость</h1>
@@ -17,8 +17,8 @@
 <fieldset><legend>Жизни</legend><div class="choices" id="counts"><button aria-label="3 жизни" data-value="3" aria-pressed="false">3</button><button aria-label="4 жизни" data-value="4" aria-pressed="false">4</button><button aria-label="5 жизней" data-value="5" aria-pressed="true">5</button></div></fieldset>
 <button class="primary" id="play">Играть</button>
 </section>
-<div id="hud" hidden><div class="stat">Попадания <strong id="score">0/15</strong></div><div class="stat" id="lives"></div></div>
-<div id="prompt" hidden></div><div id="boards" hidden></div>
+<div id="hud" hidden><div class="stat">Попадания <strong id="score">0/15</strong></div><div id="prompt" hidden></div><div class="stat" id="lives"></div></div>
+<div id="boards" hidden></div>
 <img id="boy" alt="" src="assets/boy.png">
 <section id="end" class="paper" hidden aria-labelledby="ending"><h2 id="ending"></h2><p id="summary"></p><p id="remaining"></p><button class="primary" id="again">Играть ещё</button><button class="secondary" id="back">Главное меню</button></section>
 <div class="sr" id="announce" aria-live="polite"></div>
