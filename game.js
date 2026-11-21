@@ -1,12 +1,12 @@
 "use strict";
 const el = id => document.getElementById(id);
 const words = {
-  s: ["Сок","Суп","Сыр","Сова","Собака","Санки","Сумка","Самолёт","Самокат","Слон","Снег","Сапоги","Нос","Лес","Усы"],
-  sh: ["Шар","Шапка","Шуба","Шарф","Шкаф","Шишка","Шляпа","Шорты","Мышь","Кошка","Чашка","Машина","Подушка","Груша","Карандаш"]
+  s: ["Сок","Суп","Сыр","Сова","Собака","Санки","Сумка","Самолёт","Самокат","Слон","Капуста","Сапоги","Нос","Лес","Усы"],
+  sh: ["Шар","Шапка","Шуба","Шарф","Шкаф","Шишка","Шляпа","Шорты","Мышь","Кошка","Душ","Машина","Подушка","Груша","Карандаш"]
 };
 const pictures = Object.fromEntries(Object.entries(words).map(([group,names]) =>
   [group,names.map((name,i)=>({name,group,src:'assets/'+group+(i+1)+'.jpg'}))]));
-const state = {group:"s", count:5, lives:5, score:0, deck:[], locked:false};
+const state = {group:"s", count:5, lives:5, score:0,  locked:false};
 const random = (a,b) => a + Math.random()*(b-a);
 function shuffled(items) {
   const out = items.slice();
@@ -40,32 +40,38 @@ function updateHud(){
   Array.from(el("lives").children).forEach((h,i)=>h.classList.toggle("spent",i>=state.lives));
 }
 function start(){
-  Object.assign(state,{deck:shuffled(pictures[state.group]),score:0,lives:state.count,locked:false});
+  Object.assign(state,{score:0,lives:state.count,locked:false});
   el("boy").src="assets/boy.png";
   el("prompt").textContent="Найди звук "+(state.group==="s"?"С":"Ш");
   el("lives").innerHTML=heart().repeat(state.count);
-  setScreen("play");updateHud();round();
+  completed.clear();
+  bags = {s:[], sh:[]}; recent = []; groupPair = [];
+  setScreen("play");updateHud();showNext();
 }
-// Each trio returns until its target is hit. Waiting costs no lives.
-let sequence = [];
-let nextCard = 0;
+const completed = new Set();
+let bags, recent, groupPair;
 let lastSpot = -1;
 let activeBoard = null;
 let cycleTimer = 0;
 const readingTime = 3000;
 
-function round(){
-  const other = state.group === "s" ? "sh" : "s";
-  sequence = shuffled([state.deck[state.score], ...shuffled(pictures[other]).slice(0,2)]);
-  nextCard = 0;
-  showNext();
+function drawCard(){
+  // Each pair contains both sounds; each group runs through its own shuffled bag.
+  if(!groupPair.length)groupPair = shuffled(["s","sh"]);
+  const group = groupPair.pop();
+  if(!bags[group].length){
+    const pool = shuffled(pictures[group].filter(card => !completed.has(card)));
+    bags[group] = [...pool.filter(card => !recent.includes(card)), ...pool.filter(card => recent.includes(card))];
+  }
+  const card = bags[group].shift();
+  recent = [...recent.slice(-5),card];
+  return card;
 }
 
 function showNext(){
   clearTimeout(cycleTimer);
   if(el("field").dataset.screen !== "play")return;
-  const card = sequence[nextCard];
-  nextCard = (nextCard + 1) % sequence.length;
+  const card = drawCard();
   const spots = [0,1,2].filter(spot => spot !== lastSpot);
   lastSpot = shuffled(spots)[0];
   const button = document.createElement("button");
@@ -103,14 +109,52 @@ function point(node,fx=.5,fy=.5){
   const r=node.getBoundingClientRect(),field=el("field").getBoundingClientRect();
   return {x:r.left-field.left+r.width*fx,y:r.top-field.top+r.height*fy};
 }
-async function flight(a,b){
-  const ball=document.createElement("i");ball.className="ball";el("field").append(ball);
-  const arc=Math.min(125,el("field").clientHeight*.16);
-  const frames=Array.from({length:17},(_,i)=>{
-    const t=i/16,x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t-4*arc*t*(1-t);
-    return {transform:'translate('+x+'px,'+y+'px) translate(-50%,-50%) scale('+(1-.25*t)+')'};
+async function flight(a,b,returning=false){
+  const ball = document.createElement("i");
+  ball.className = "ball";
+  const distance = Math.hypot(b.x-a.x,b.y-a.y);
+  const height = el("field").clientHeight;
+  const loft = Math.min(height*.23, distance*.31);
+  const startScale = returning ? .38 : 1;
+  const endScale = returning ? .70 : .49;
+  const diameter = el("boy").getBoundingClientRect().width*.155;
+  ball.style.width = diameter+"px";
+  el("field").append(ball);
+  const frames = Array.from({length:33},(_,i)=>{
+    const t=i/32;
+    // A receding throw covers more screen distance just after release.
+    const depth = returning ? t/(1.4-.4*t) : 1.4*t/(1+.4*t);
+    const x=a.x+(b.x-a.x)*depth;
+    const y=a.y+(b.y-a.y)*depth-4*loft*t*(1-t);
+    const scale=startScale+(endScale-startScale)*depth;
+    return {transform:`translate(${x}px,${y}px) translate(-50%,-50%) scale(${scale}) rotate(${t*135}deg)`};
   });
-  ball.style.left="0";ball.style.top="0";await motion(ball,frames,360,"linear");ball.remove();
+  await motion(ball,frames,Math.min(720,430+distance*.30),"linear");
+  ball.remove();
+}
+
+function shatter(at,diameter){
+  const field=el("field");
+  const puff=document.createElement("i");
+  puff.className="snow-puff";
+  puff.style.cssText=`left:${at.x}px;top:${at.y}px;width:${diameter*2.8}px`;
+  field.append(puff);
+  motion(puff,[{transform:"translate(-50%,-50%) scale(.26)",opacity:.85},{transform:"translate(-50%,-57%) scale(1.5)",opacity:0}],320).then(()=>puff.remove());
+  for(let i=0;i<24;i++){
+    const fragment=document.createElement("i");
+    fragment.className="snow-chip";
+    const size=diameter*(i<8?random(.14,.32):random(.045,.13));
+    fragment.style.cssText=`width:${size}px;height:${size*random(.7,1.2)}px;left:${at.x}px;top:${at.y}px`;
+    field.append(fragment);
+    const angle=random(0,Math.PI*2),speed=diameter*random(.75,2.25);
+    const dx=Math.cos(angle)*speed,dy=Math.sin(angle)*speed-diameter*.8;
+    const spin=random(-210,210);
+    const frames=Array.from({length:13},(_,j)=>{
+      const t=j/12;
+      return {transform:`translate(${dx*t}px,${dy*t+diameter*2.1*t*t}px) rotate(${spin*t}deg) scale(${1-.33*t})`,opacity:Math.min(1,(1-t)*2)};
+    });
+    motion(fragment,frames,random(360,620),"linear").then(()=>fragment.remove());
+  }
 }
 function burst(p,flags=false){
   for(let i=0;i<(flags?45:14);i++){
@@ -128,16 +172,26 @@ async function shoot(card,button){
   if(state.locked || button !== activeBoard || el("field").dataset.screen!=="play")return;
   clearTimeout(cycleTimer);
   state.locked=true;
-  const boy=el("boy"),hand=point(boy,.90,.04),target=point(button.querySelector("img"));
+  const boy=el("boy");
+  for(const animation of button.getAnimations()){
+    if(animation.animationName==="surface")animation.finish();
+    else animation.pause();
+  }
+  const target=point(button.querySelector("img"));
   await motion(boy,[{transform:"rotate(0)"},{transform:"rotate(-7deg)",offset:.55},{transform:"rotate(4deg)"}],180);
-  boy.src="assets/throw.png";await flight(hand,target);burst(target);
+  const hand=point(boy,.90,.04);
+  const diameter=boy.getBoundingClientRect().width*.155;
+  boy.src="assets/throw.png";
+  await flight(hand,target);
+  shatter(target,diameter*.6);
   const correct=card.group===state.group;
   if(correct){
-    state.score++;updateHud();el("announce").textContent=card.name+". Верно! "+state.score+" из 15.";
+    completed.add(card);state.score++;updateHud();el("announce").textContent=card.name+". Верно! "+state.score+" из 15.";
     await motion(button.querySelector("img"),[{rotate:"0deg"},{rotate:"-7deg"},{rotate:"4deg"},{rotate:"0deg"}],210);
-    await lowerBoard(button, () => state.score===15 ? finish(true) : round());
+    await lowerBoard(button, () => state.score===15 ? finish(true) : showNext());
   }else{
-    await flight(target,point(boy,.5,.18));burst(point(boy,.5,.18));
+    const hat=point(boy,.46,.16);
+    await flight(target,hat,true);shatter(hat,diameter*.78);
     state.lives--;updateHud();el("announce").textContent=card.name+". Попробуй другую картинку. Жизней — "+state.lives;
     await motion(boy,[{transform:"rotate(0)"},{transform:"rotate(-5deg)"},{transform:"rotate(3deg)"},{transform:"rotate(0)"}],270);
     if(state.lives===0)finish(false);else await lowerBoard(button,showNext);
